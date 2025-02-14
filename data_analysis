@@ -1,0 +1,262 @@
+#install all the required packages
+install.packages('tidyverse')
+library(tidyverse)
+install.packages('hms')
+library(hms)
+install.packages('conflicted')
+library(conflicted)
+install.packages("lubridate")
+library(lubridate)
+install.packages("dplyr") 
+library(dplyr)
+install.packages("readr")
+library(readr)    
+install.packages("janitor")
+library(janitor)
+
+
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+daily_activity <- read_csv('/Users/teri/Downloads/archive/mturkfitbit_export_4.12.16-5.12.16/data/dailyActivity_merged.csv')
+daily_calories <- read_csv('/Users/teri/Downloads/archive/mturkfitbit_export_4.12.16-5.12.16/data/dailyCalories_merged.csv')
+daily_steps <- read_csv('/Users/teri/Downloads/archive/mturkfitbit_export_4.12.16-5.12.16/data/dailySteps_merged.csv')
+hourly_calories <- read_csv('/Users/teri/Downloads/archive/mturkfitbit_export_4.12.16-5.12.16/data/hourlyCalories_merged.csv')
+hourly_steps <- read_csv('/Users/teri/Downloads/archive/mturkfitbit_export_4.12.16-5.12.16/data/hourlySteps_merged.csv')
+sleep <- read_csv('/Users/teri/Downloads/archive/mturkfitbit_export_4.12.16-5.12.16/data/sleepDay_merged.csv')
+weight <- read_csv('/Users/teri/Downloads/archive/mturkfitbit_export_4.12.16-5.12.16/data/weightLogInfo_merged.csv')
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+#overview
+head(daily_activity)
+head(daily_calories)
+head(daily_steps)
+head(hourly_calories)
+head(hourly_steps)
+head(sleep)
+head(weight)
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+#distinct users
+n_distinct(daily_activity$Id) #33
+n_distinct(daily_calories$Id) #33
+n_distinct(daily_steps$Id) #33
+n_distinct(hourly_calories$Id) #33
+n_distinct(hourly_steps$Id) #33
+n_distinct(sleep$Id) #24
+n_distinct(weight$Id) #8
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+#no of entries
+nrow(daily_activity)
+nrow(daily_calories)
+nrow(daily_steps)
+nrow(hourly_calories)
+nrow(hourly_steps)
+nrow(sleep)
+nrow(weight)
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+#remove na
+daily_activity <- na.omit(daily_activity)
+daily_calories <- na.omit(daily_calories)
+daily_steps <- na.omit(daily_steps)
+hourly_calories <- na.omit(hourly_calories)
+hourly_steps <- na.omit(hourly_steps)
+sleep <- na.omit(sleep)
+weight <- na.omit(weight)
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+#remove duplicates
+daily_activity <- distinct(daily_activity)
+daily_calories <- distinct(daily_calories)
+daily_steps <- distinct(daily_steps)
+hourly_calories <- distinct(hourly_calories)
+hourly_steps <- distinct(hourly_steps)
+sleep <- distinct(sleep)
+weight <- distinct(weight)
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+#make all column names in a similar format to merge the datasets later on
+clean_names(daily_activity)
+daily_activity <- rename_with(daily_activity, tolower)
+
+clean_names(daily_calories)
+daily_calories <- rename_with(daily_calories, tolower)
+
+clean_names(daily_steps)
+daily_steps <- rename_with(daily_steps, tolower)
+
+clean_names(hourly_calories)
+hourly_calories <- rename_with(hourly_calories, tolower)
+
+clean_names(hourly_steps)
+hourly_steps <- rename_with(hourly_steps, tolower)
+
+clean_names(sleep)
+sleep <- rename_with(sleep, tolower)
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Setting the date/time columns in the same format
+daily_activity <- daily_activity %>%
+  rename(date = activitydate) %>%
+  mutate(date = as_date(date, format = "%m/%d/%Y"))
+
+daily_calories <- daily_calories %>%
+  rename(date = activityday) %>%
+  mutate(date = as_date(date, format = "%m/%d/%Y %I:%M:%S %p" , tz = Sys.timezone()))
+
+sleep <- sleep %>%
+  rename(date = sleepday) %>%
+  mutate(date = as_date(date, format = "%m/%d/%Y %I:%M:%S %p" , tz = Sys.timezone()))
+
+hourly_calories <- hourly_calories %>%
+  rename(date = activityhour) %>%
+  mutate(date = as_date(date, format = "%m/%d/%Y %I:%M:%S %p" , tz = Sys.timezone()))
+
+hourly_steps <- hourly_steps %>%
+  rename(date = activityhour) %>%
+  mutate(date = as_date(date, format = "%m/%d/%Y %I:%M:%S %p" , tz = Sys.timezone()))
+
+daily_steps <- daily_steps %>%
+  rename(date = activityday) %>%
+  mutate(date = as_date(date, format = "%m/%d/%Y %I:%M:%S %p" , tz = Sys.timezone()))
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Merged daily activity and sleep data
+daily_activity_sleep <- merge(daily_activity, sleep, by=c ("id", "date"))
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# summary for daily_activity
+daily_activity %>%
+  select(totalsteps,totaldistance,sedentaryminutes,calories) %>%
+  summary()
+Output:
+   totalsteps    totaldistance    sedentaryminutes    calories   
+ Min.   :    0   Min.   : 0.000   Min.   :   0.0   Min.   :   0  
+ 1st Qu.: 3790   1st Qu.: 2.620   1st Qu.: 729.8   1st Qu.:1828  
+ Median : 7406   Median : 5.245   Median :1057.5   Median :2134  
+ Mean   : 7638   Mean   : 5.490   Mean   : 991.2   Mean   :2304  
+ 3rd Qu.:10727   3rd Qu.: 7.713   3rd Qu.:1229.5   3rd Qu.:2793  
+ Max.   :36019   Max.   :28.030   Max.   :1440.0   Max.   :4900  
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Steps taken vs. calories burned
+ggplot(data=daily_activity, aes(x=totalsteps, y=calories)) + 
+  geom_point() + geom_smooth() + labs(title = "Steps taken vs. Calories burned")
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Daily steps taken
+weekday_steps <- daily_activity %>%
+  mutate(weekday = weekdays(date))
+weekday_steps$weekday <- ordered(weekday_steps$weekday, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+weekday_steps <- weekday_steps %>%
+  group_by(weekday) %>%
+  summarize(daily_steps=mean(totalsteps))
+
+head(weekday_steps)
+
+ggplot(weekday_steps, aes(weekday, daily_steps)) + 
+  geom_col(fill = "red") +
+  geom_hline(yintercept = 7500) +
+  annotate("text", x = 1.5, y = 7600, label = "Target: 7500", color = "black", fontface = "bold") +
+  geom_label(aes(label = round(daily_steps)), vjust = -0.2) +
+  labs(title = "Daily steps taken", x="", y="") +
+  theme(axis.title.x = element_text(angle = 45, vjust = 0.5, hjust = 1))
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Sleep time
+weekday_sleep <- sleep %>%
+  mutate(weekday = weekdays(date))
+
+weekday_sleep$weekday <- ordered(weekday_sleep$weekday, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+weekday_sleep <- weekday_sleep %>%
+  group_by(weekday) %>%
+  summarize(sleep = mean(totalminutesasleep))
+
+head(weekday_sleep)
+
+ggplot(weekday_sleep,aes(weekday, sleep)) +
+  geom_col(fill = "lightgreen") +
+  geom_label(aes(label = round(sleep)), vjust = 0.5) +
+  labs(title = "Sleep time" , x="", y="") + 
+  theme(axis.title.x = element_text(angle = 45, vjust = 0.5, hjust = 1))
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# hourly steps during the day
+hourly_steps <- hourly_steps %>%
+  separate(date, into = c("dated", "time"), sep=" ") %>%
+  mutate(dated=ymd(dated))
+
+hourly_steps %>%
+  group_by(time) %>%
+  summarise(average_steps = mean(steptotal)) %>%
+  ggplot() +
+  geom_col(mapping = aes(x=time, y=average_steps, fill = average_steps)) +
+  labs(title = "Hourly steps during the dat" , x="", y="") + 
+  scale_fill_gradient(low = "red",high = "lightgreen") +
+  theme(axis.title.x = element_text(angle = 90))
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+# How long does a person uses
+daily_use <- daily_activity_sleep %>%
+  group_by(id) %>%
+  summarise(days_used=sum(n()))%>%
+  mutate(user_type = case_when(
+    days_used >= 1 & days_used <= 10 ~ "low user",
+    days_used >= 11 & days_used <= 20 ~ "moderate user",
+    days_used >= 21 & days_used <= 31 ~ "high user"
+  ))
+
+head(daily_use)
+
+daily_use_percent <- daily_use %>%
+  group_by(user_type) %>%
+  summarise(total = n()) %>%
+  mutate(totals = sum(total)) %>%
+  group_by(user_type) %>%
+  summarise(total_percent = total / totals) %>%
+  mutate(labels = scales::percent(total_percent))
+
+daily_use_percent$user_type <- factor(daily_use_percent$user_type, levels = c("high user", "moderate user", "low user"))
+
+daily_use_percent %>%
+  ggplot(aes(x="", y= total_percent, fill = user_type)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  theme_minimal() +
+  theme(axis.title.x= element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(), 
+        panel.grid = element_blank(), 
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, size=14, face = "bold")) +
+  geom_text(aes(label = labels),
+            position = position_stack(vjust = 0.5))+
+  scale_fill_manual(values = c( "darkred","red","lightgreen"),
+                    labels = c("High user - 21 to 31 days",
+                               "Moderate user - 11 to 20 days",
+                               "Low user - 1 to 10 days"))+
+  labs(title="Daily use of smart device")
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
